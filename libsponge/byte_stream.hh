@@ -2,6 +2,7 @@
 #define SPONGE_LIBSPONGE_BYTE_STREAM_HH
 
 #include <string>
+#include <deque>
 
 //! \brief An in-order byte stream.
 
@@ -17,7 +18,12 @@ class ByteStream {
     // that's a sign that you probably want to keep exploring
     // different approaches.
 
-    bool _error{};  //!< Flag indicating that the stream suffered an error.
+    bool m_error = false;  //!< Flag indicating that the stream suffered an error.
+    size_t m_capacity = 0;
+    size_t m_writtenBytes = 0;
+    size_t m_readBytes = 0;
+    std::deque<char> m_byteArray;
+    bool m_endInput = false;
 
   public:
     //! Construct a stream with room for `capacity` bytes.
@@ -38,7 +44,7 @@ class ByteStream {
     void end_input();
 
     //! Indicate that the stream suffered an error.
-    void set_error() { _error = true; }
+    void set_error() { m_error = true; }
     //!@}
 
     //! \name "Output" interface for the reader
@@ -59,7 +65,7 @@ class ByteStream {
     bool input_ended() const;
 
     //! \returns `true` if the stream has suffered an error
-    bool error() const { return _error; }
+    bool error() const { return m_error; }
 
     //! \returns the maximum amount that can currently be read from the stream
     size_t buffer_size() const;
