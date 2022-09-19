@@ -8,6 +8,7 @@
 
 #include <functional>
 #include <queue>
+#include <map>
 
 //! \brief The "sender" part of a TCP implementation.
 
@@ -17,20 +18,43 @@
 //! segments if the retransmission timer expires.
 class TCPSender {
   private:
+    enum class TCPState {
+        SYN_SENT,
+        SYN_ACKED,
+        FIN_SENT,
+        FIN_ACKED,
+        CLOSED,
+    };
+
+  private:
     //! our initial sequence number, the number for our SYN.
-    WrappingInt32 _isn;
+    WrappingInt32 m_isn;
 
     //! outbound queue of segments that the TCPSender wants sent
-    std::queue<TCPSegment> _segments_out{};
+    std::queue<TCPSegment> m_segments_out{};
 
     //! retransmission timer for the connection
-    unsigned int _initial_retransmission_timeout;
+    unsigned int m_initial_retransmission_timeout;
+    unsigned int m_retransmission_timeout;
+    unsigned int m_retransmission_time = 0;
 
     //! outgoing stream of bytes that have not yet been sent
-    ByteStream _stream;
+    ByteStream m_stream;
 
     //! the (absolute) sequence number for the next byte to be sent
-    uint64_t _next_seqno{0};
+    uint64_t m_next_seqno{0};
+    uint64_t m_acked_seqno{0};
+
+    uint64_t m_window_size{0};
+
+    bool m_zero_window = false;
+    bool m_tick_started = false;
+
+    uint64_t m_ticks{0};
+
+    TCPState m_state = TCPState::CLOSED;
+
+    std::map<uint64_t, TCPSegment> m_segments_in_flight {};
 
   public:
     //! Initialize a TCPSender
@@ -40,8 +64,8 @@ class TCPSender {
 
     //! \name "Input" interface for the writer
     //!@{
-    ByteStream &stream_in() { return _stream; }
-    const ByteStream &stream_in() const { return _stream; }
+    ByteStream &stream_in() { return m_stream; }
+    const ByteStream &stream_in() const { return m_stream; }
     //!@}
 
     //! \name Methods that can cause the TCPSender to send a segment
@@ -75,17 +99,17 @@ class TCPSender {
     //! \note These must be dequeued and sent by the TCPConnection,
     //! which will need to fill in the fields that are set by the TCPReceiver
     //! (ackno and window size) before sending.
-    std::queue<TCPSegment> &segments_out() { return _segments_out; }
+    std::queue<TCPSegment> &segments_out() { return m_segments_out; }
     //!@}
 
     //! \name What is the next sequence number? (used for testing)
     //!@{
 
     //! \brief absolute seqno for the next byte to be sent
-    uint64_t next_seqno_absolute() const { return _next_seqno; }
+    uint64_t next_seqno_absolute() const { return m_next_seqno; }
 
     //! \brief relative seqno for the next byte to be sent
-    WrappingInt32 next_seqno() const { return wrap(_next_seqno, _isn); }
+    WrappingInt32 next_seqno() const { return wrap(m_next_seqno, m_isn); }
     //!@}
 };
 
